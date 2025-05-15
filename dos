@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# ===== [ Умолчания ] =====
+COMPOSE_FILE="docker-compose.yml"
+PROJECT_DIR=$(pwd)
+SERVICE="app"  # Значение по умолчанию
+
+# ===== [ Загружаем имя сервиса из .env, если есть ] =====
+if [ -f "$PROJECT_DIR/.env" ]; then
+    ENV_SERVICE=$(grep "^DOS_SERVICE=" "$PROJECT_DIR/.env" | cut -d '=' -f2 | tr -d '"')
+    if [ -n "$ENV_SERVICE" ]; then
+        SERVICE="$ENV_SERVICE"
+    fi
+fi
+
+COMPOSE="docker compose -f $COMPOSE_FILE"
+
+cd "$PROJECT_DIR" || {
+    echo "❌ Не удалось перейти в $PROJECT_DIR"
+    exit 1
+}
+
+# ===== [ Хелпер ] =====
+function show_help() {
+    echo -e "\033[1mDos: удобный алиас для docker compose команд\033[0m"
+    echo ""
+    echo "Использование: dos [команда] [аргументы]"
+    echo ""
+    echo "Команды:"
+    echo "  up                 Запустить контейнеры в фоне"
+    echo "  down               Остановить и удалить контейнеры"
+    echo "  build              Собрать контейнеры"
+    echo "  shell              Открыть bash внутри контейнера ($SERVICE)"
+    echo "  artisan [args]     Выполнить php artisan"
+    echo "  composer [args]    Выполнить composer"
+    echo "  npm [args]         Выполнить npm"
+    echo "  help               Показать эту справку"
+    echo "  [любая] [args]     Любая другая команда внутрь контейнера"
+    echo ""
+    echo "Используется docker compose файл: $COMPOSE_FILE"
+    echo "Текущий сервис: $SERVICE"
+}
+
+# ===== [ Команды ] =====
+case "$1" in
+    "" | help)
+        show_help
+        ;;
+    up)
+        $COMPOSE up -d
+        ;;
+    down)
+        $COMPOSE down
+        ;;
+    build)
+        $COMPOSE build
+        ;;
+    shell)
+        $COMPOSE exec "$SERVICE" bash
+        ;;
+    artisan)
+        shift
+        $COMPOSE exec "$SERVICE" php artisan "$@"
+        ;;
+    composer)
+        shift
+        $COMPOSE exec "$SERVICE" composer "$@"
+        ;;
+    npm)
+        shift
+        $COMPOSE exec "$SERVICE" npm "$@"
+        ;;
+    *)
+        shift
+        $COMPOSE exec "$SERVICE" "$@"
+        ;;
+esac
